@@ -1,7 +1,9 @@
 #!/usr/bin/python3
 
 import pprint
-from sudoku_solver import BacktrackingSolver
+
+from algorithm_x import AlgorithmXSudokuSolver
+from check_sudoku import check_sudoku
 
 pp = pprint.PrettyPrinter()
 
@@ -25,8 +27,9 @@ sudoku = [[5, 3, 0, 0, 7, 0, 0, 0, 0],
           [0, 0, 0, 4, 1, 9, 0, 0, 5],
           [0, 0, 0, 0, 8, 0, 0, 7, 9]]
 
-pp.pprint(sudoku)
+solver = AlgorithmXSudokuSolver()
+solution = solver.solve(sudoku)
 
-solution = BacktrackingSolver.solve(sudoku)
-
-pp.pprint(solution[1])
+if solution[0]:
+    print(check_sudoku(solution[1]))
+    pp.pprint(solution[1])
