@@ -1,3 +1,3 @@
 # sudoku_solver
 
-A simple python based sudo solver.
+A simple python based sudoku solver.
