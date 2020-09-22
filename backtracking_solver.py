@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class BacktrackingSolver():
     @staticmethod
     def solve(sudoku):
@@ -7,9 +8,7 @@ class BacktrackingSolver():
         if sudoku.shape != (9, 9):
             raise AttributeError('Input of non valid size.')
 
-        solution = BacktrackingSolver.solve_sudoku(sudoku)
-        solution = (solution[0], solution[1].tolist())
-        return solution
+        return BacktrackingSolver.solve_sudoku(sudoku)
 
     @staticmethod
     def solve_sudoku(sudoku):
@@ -20,24 +19,22 @@ class BacktrackingSolver():
                         if BacktrackingSolver.is_viable(sudoku, i, j, k):
                             sudoku[i, j] = k
                             solution = BacktrackingSolver.solve_sudoku(sudoku)
-                            if solution[0]:
+                            if solution is not None:
                                 return solution
-                            else:
-                                sudoku[i, j] = 0
-                    return (False, sudoku)
-        return (True, sudoku)
-                    
-    
+                            sudoku[i, j] = 0
+                    return None
+        return sudoku.tolist()
+
     @staticmethod
     def is_viable(sudoku, row, col, num):
         # Check row viability
         if num in sudoku[:, col]:
             return False
-        
+
         # Check column viability
         if num in sudoku[row, :]:
             return False
-        
+
         # Check box viability
         box_row = (row // 3) * 3
         box_col = (col // 3) * 3
@@ -45,6 +42,6 @@ class BacktrackingSolver():
         if num in sudoku[box_row:(box_row + 3),
                          box_col:(box_col + 3)]:
             return False
-        
+
         # Everything viable
         return True

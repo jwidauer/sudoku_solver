@@ -109,3 +109,11 @@ dmypy.json
 ### VisualStudioCode Patch ###
 # Ignore all local history of files
 .history
+
+# Keras / TensorFlow model files
+*.h5
+*.tflite
+
+# Images
+*.jpg
+*.png

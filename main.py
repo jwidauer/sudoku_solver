@@ -1,35 +1,45 @@
 #!/usr/bin/python3
 
-import pprint
+from timeit import default_timer as timer
+import statistics
 
-from algorithm_x import AlgorithmXSudokuSolver
-from check_sudoku import check_sudoku
+from algorithm_x_sudoku_solver import AlgorithmXSudokuSolver
 
-pp = pprint.PrettyPrinter()
 
-# sudoku = [[0, 0, 0, 0, 0, 0, 0, 0, 0],
-#           [0, 0, 0, 0, 0, 3, 0, 8, 5],
-#           [0, 0, 1, 0, 2, 0, 0, 0, 0],
-#           [0, 0, 0, 5, 0, 7, 0, 0, 0],
-#           [0, 0, 4, 0, 0, 0, 1, 0, 0],
-#           [0, 9, 0, 0, 0, 0, 0, 0, 0],
-#           [5, 0, 0, 0, 0, 0, 0, 7, 3],
-#           [0, 0, 2, 0, 1, 0, 0, 0, 0],
-#           [0, 0, 0, 0, 4, 0, 0, 0, 9]]
+def convert_to_grid(string):
+    grid = [[0]*9]*9
+    for i, val in enumerate(string):
+        if val in "123456789":
+            grid[int(i/9)][i % 9] = int(val)
+    return grid
 
-sudoku = [[5, 3, 0, 0, 7, 0, 0, 0, 0],
-          [6, 0, 0, 1, 9, 5, 0, 0, 0],
-          [0, 9, 8, 0, 0, 0, 0, 6, 0],
-          [8, 0, 0, 0, 6, 0, 0, 0, 3],
-          [4, 0, 0, 8, 0, 3, 0, 0, 1],
-          [7, 0, 0, 0, 2, 0, 0, 0, 6],
-          [0, 6, 0, 0, 0, 0, 2, 8, 0],
-          [0, 0, 0, 4, 1, 9, 0, 0, 5],
-          [0, 0, 0, 0, 8, 0, 0, 7, 9]]
+
+f = open("test_sudokus.txt")
+
+sudokus = []
+for sudoku in f:
+    sudokus.append(convert_to_grid(sudoku))
+
+print("Starting to solve!")
 
 solver = AlgorithmXSudokuSolver()
-solution = solver.solve(sudoku)
 
-if solution[0]:
-    print(check_sudoku(solution[1]))
-    pp.pprint(solution[1])
+runtimes = []
+found_sol = 0
+for sudoku in sudokus:
+    start = timer()
+    solution = solver.solve(sudoku)
+    end = timer()
+    found_sol += 1
+    runtimes.append(end - start)
+
+solved_percentage = int(found_sol / len(runtimes) * 100)
+
+average_runtime = sum(runtimes) / len(runtimes) * 1e3
+std_runtime = statistics.pstdev(runtimes) * 1e3
+max_runtime = max(runtimes) * 1e3
+min_runtime = min(runtimes) * 1e3
+
+print(
+    f"Found solution to {found_sol}/{len(runtimes)} ({solved_percentage}%) sudokus.")
+print(f"Runtime was: avg: {round(average_runtime, 3)}(+/-{round(std_runtime, 3)})ms \t max: {round(max_runtime, 3)}ms \t min: {round(min_runtime, 3)}ms")
