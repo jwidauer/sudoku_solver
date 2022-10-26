@@ -1,30 +1,39 @@
 import numpy as np
+from typing import override
 
 
 class Node:
     def __init__(self, name=None, l=None, r=None, u=None, d=None, c=None):
-        self.name = name
-        self.l = l
-        self.r = r
-        self.u = u
-        self.d = d
-        self.c = c
+        self.row_num: int | None = name
+        self.l: Node | None = l
+        self.r: Node | None = r
+        self.u: Node | None = u
+        self.d: Node | None = d
+        self.c: Node | None = c
+
+    @override
+    def __str__(self):
+        L = self.l.row_num if self.l else None
+        R = self.r.row_num if self.r else None
+        U = self.u.row_num if self.u else None
+        D = self.d.row_num if self.d else None
+        return f"Node({self.row_num}): L={L}, R={R}, U={U}, D={D}"
 
 
 class HeaderNode(Node):
     def __init__(self, l=None, r=None, u=None, d=None, c=None):
         super().__init__(None, l, r, u, d, c)
-        self.size = 0
+        self.size: int = 0
 
 
-class AlgorithmX():
+class AlgorithmX:
     @staticmethod
-    def solve(matrix: np.array):
+    def solve(matrix: np.ndarray):
         h = AlgorithmX.setup_grid(matrix)
         return AlgorithmX.search(h)
 
     @staticmethod
-    def setup_grid(matrix: np.array):
+    def setup_grid(matrix: np.ndarray):
         h = HeaderNode()
         h.u = h.d = h.r = h.l = h
 
@@ -37,15 +46,18 @@ class AlgorithmX():
             new_node.u = new_node.d = new_node.c = new_node
             headers.append(new_node)
 
-        # Create linked list "matrix"
-        for row_num, row in enumerate(matrix):
-            prev_node = None
-            for idx, val in enumerate(row):
-                if val != 0:
-                    new_node = Node(name=row_num)
-                    AlgorithmX.insert_above(headers[idx + 1], new_node)
+        count = 0
 
-                    if prev_node == None:
+        # Create linked list "matrix"
+        for row_idx, row in enumerate(matrix):
+            prev_node = None
+            for col_idx, val in enumerate(row):
+                if val != 0:
+                    count += 1
+                    new_node = Node(name=row_idx)
+                    AlgorithmX.insert_above(headers[col_idx + 1], new_node)
+
+                    if prev_node is None:
                         # First node this row
                         new_node.r = new_node
                         new_node.l = new_node
@@ -54,6 +66,7 @@ class AlgorithmX():
                         new_node.l = prev_node
                         new_node.r.l = new_node
                         new_node.l.r = new_node
+
                     prev_node = new_node
 
         return h
@@ -77,9 +90,9 @@ class AlgorithmX():
         new_node.c.size += 1
 
     @staticmethod
-    def choose_column(h):
+    def choose_column(h: HeaderNode):
         # Chooses column with smallest number of nodes
-        min_size = float('inf')
+        min_size = float("inf")
         min_node = h
 
         cur_node = h.r
@@ -142,7 +155,7 @@ class AlgorithmX():
 
             sol = AlgorithmX.search(h)
             if sol is not None:
-                sol.append(O.name)
+                sol.append(O.row_num)
                 return sol
 
             row_node = col_node.l

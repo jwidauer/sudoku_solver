@@ -1,3 +1,3 @@
-# sudoku_solver
+# Sudoku Solver
 
-A simple python based sudoku solver.
+Multiple sudoku solvers in different languages.
