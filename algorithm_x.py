@@ -17,7 +17,7 @@ class HeaderNode(Node):
         self.size = 0
 
 
-class AlgorithmX():
+class AlgorithmX:
     @staticmethod
     def solve(matrix: np.array):
         h = AlgorithmX.setup_grid(matrix)
@@ -79,7 +79,7 @@ class AlgorithmX():
     @staticmethod
     def choose_column(h):
         # Chooses column with smallest number of nodes
-        min_size = float('inf')
+        min_size = float("inf")
         min_node = h
 
         cur_node = h.r
