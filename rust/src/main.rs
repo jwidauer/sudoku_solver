@@ -11,7 +11,7 @@ use sudoku_solver::SudokuSolver;
 use crate::algorithm_x_solver::AlgorithmXSudokuSolver;
 
 mod algorithm_x;
-mod algorithm_x_solver;
+pub mod algorithm_x_solver;
 mod backtracking_solver;
 mod stats;
 mod sudoku;
@@ -33,8 +33,8 @@ enum SolverType {
 impl fmt::Display for SolverType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            SolverType::Backtracking => write!(f, "Backtracking"),
-            SolverType::AlgorithmX => write!(f, "Algorithm X"),
+            SolverType::Backtracking => write!(f, "backtracking"),
+            SolverType::AlgorithmX => write!(f, "algorithm-x"),
         }
     }
 }
@@ -46,7 +46,7 @@ fn main() -> Result<()> {
 
     let sudokus = content
         .lines()
-        .map(Sudoku::from_str)
+        .map(Sudoku::try_from_str)
         .collect::<Result<Vec<_>>>()?;
 
     let solver: Box<dyn SudokuSolver> = match args.solver {
@@ -78,7 +78,7 @@ fn main() -> Result<()> {
 
             match solution {
                 Some(sol) if !sol.is_solved() => {
-                    println!("Solution is wrong for sudoku!\n{sudoku}")
+                    panic!("Solution is wrong for sudoku!\n{sudoku}")
                 }
                 None => println!("No solution found for sudoku!\n{sudoku}"),
                 _ => println!("Solved sudoku in {}us\n", duration.as_micros()),

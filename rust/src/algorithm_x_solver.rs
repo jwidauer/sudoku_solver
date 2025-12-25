@@ -1,7 +1,6 @@
 use crate::{sudoku::Sudoku, sudoku_solver::SudokuSolver};
 
 use super::algorithm_x::NodeGrid;
-use ndarray::prelude::*;
 
 const NR_CANDIDATES: usize = 9 * 9 * 9; // 729
 const NR_CONSTRAINTS: usize = 4 * 9 * 9; // 324
@@ -14,7 +13,7 @@ struct Candidate {
 }
 
 pub struct AlgorithmXSudokuSolver {
-    matrix: Array2<bool>,
+    sparse_mat: Vec<[u16; 4]>,
     candidates: Vec<Candidate>,
 }
 
@@ -25,28 +24,26 @@ impl AlgorithmXSudokuSolver {
             .map(|(row, col, num)| Candidate { row, col, num })
             .collect();
 
-        let mut matrix = Array2::<bool>::default((NR_CANDIDATES, NR_CONSTRAINTS));
+        // Store just the column indices of the constraints for each candidate
+        let mut sparse_mat: Vec<[u16; 4]> = Vec::with_capacity(NR_CANDIDATES);
+
+        // let mut matrix = Array2::<bool>::default((NR_CANDIDATES, NR_CONSTRAINTS));
         for candidate in &candidates {
             let row = (candidate.row - 1) as usize;
             let col = (candidate.col - 1) as usize;
             let num = (candidate.num - 1) as usize;
 
-            let matrix_row = (row * 81) + (col * 9) + num;
-
             // Cell constraint
             // Each cell (row, col) must be filled with exactly one number
             let cell_cons_col = row * 9 + col;
-            matrix[[matrix_row, cell_cons_col]] = true;
 
             // Row constraint
             // Each number must appear exactly once in each row
             let row_cons_col = row * 9 + num + 81;
-            matrix[[matrix_row, row_cons_col]] = true;
 
             // Column constraint
             // Each number must appear exactly once in each column!
             let col_cons_col = col * 9 + num + 2 * 81;
-            matrix[[matrix_row, col_cons_col]] = true;
 
             // Box constraint
             // Each number must appear exactly once in each 3x3 box
@@ -54,16 +51,22 @@ impl AlgorithmXSudokuSolver {
             let box_col = col / 3;
             let box_index = box_row * 3 + box_col;
             let box_cons_col = box_index * 9 + num + 3 * 81;
-            matrix[[matrix_row, box_cons_col]] = true;
+
+            sparse_mat.push([
+                cell_cons_col as u16,
+                row_cons_col as u16,
+                col_cons_col as u16,
+                box_cons_col as u16,
+            ]);
         }
 
-        Self { matrix, candidates }
+        Self {
+            sparse_mat,
+            candidates,
+        }
     }
-}
 
-impl SudokuSolver for AlgorithmXSudokuSolver {
-    fn solve(&self, mut board: Sudoku) -> Option<Sudoku> {
-        // Prepare the list of row indices to select from the exact cover matrix
+    fn calc_row_idcs(board: &Sudoku) -> Vec<usize> {
         let mut row_idcs = Vec::with_capacity(NR_CANDIDATES);
         for (i, &elem) in board.iter().enumerate() {
             let row = i / 9;
@@ -80,9 +83,28 @@ impl SudokuSolver for AlgorithmXSudokuSolver {
                 row_idcs.push(idx);
             }
         }
+        row_idcs
+    }
+}
 
-        let sub_matrix = self.matrix.select(Axis(0), &row_idcs);
-        let solution = NodeGrid::new(sub_matrix).search()?;
+impl Default for AlgorithmXSudokuSolver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SudokuSolver for AlgorithmXSudokuSolver {
+    fn solve(&self, mut board: Sudoku) -> Option<Sudoku> {
+        // Prepare the list of row indices to select from the exact cover matrix
+        let row_idcs = Self::calc_row_idcs(&board);
+
+        // Create a sub-matrix containing only the relevant rows
+        // let sub_matrix = self.matrix.select(Axis(0), &row_idcs);
+        let sparse_sub_mat = row_idcs
+            .iter()
+            .map(|&idx| self.sparse_mat[idx])
+            .collect::<Vec<_>>();
+        let solution = NodeGrid::from_sparse_matrix(&sparse_sub_mat, NR_CONSTRAINTS).search()?;
 
         let candidates = row_idcs
             .into_iter()
@@ -90,7 +112,7 @@ impl SudokuSolver for AlgorithmXSudokuSolver {
             .collect::<Vec<_>>();
 
         for idx in solution {
-            let candidate = candidates[idx];
+            let candidate = candidates[idx as usize];
             let row = (candidate.row - 1) as usize;
             let col = (candidate.col - 1) as usize;
             let num = candidate.num;

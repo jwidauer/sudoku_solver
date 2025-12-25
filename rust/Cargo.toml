@@ -8,7 +8,14 @@ edition = "2021"
 [dependencies]
 anyhow = "1.0.100"
 clap = { version = "4.5.53", features = ["derive"] }
-ndarray = "0.15.6"
+ndarray = "0.17.1"
 
 [profile.release]
 debug = 1
+
+[dev-dependencies]
+criterion = "0.8.1"
+
+[[bench]]
+name = "sudoku_bench"
+harness = false

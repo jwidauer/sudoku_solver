@@ -1,13 +1,13 @@
-use ndarray::prelude::*;
-
 #[derive(Clone, Debug)]
 struct Node {
-    left: usize,
-    right: usize,
-    up: usize,
-    down: usize,
-    row: usize, // row idx of the original matrix
-    col: usize, // idx of the corresponding col header node
+    left: u16,
+    right: u16,
+    up: u16,
+    down: u16,
+    /// row idx of the original matrix
+    row: u16,
+    /// idx of the corresponding col header node
+    col: u16,
 }
 
 impl Node {
@@ -29,12 +29,13 @@ pub struct NodeGrid {
 }
 
 impl NodeGrid {
-    const ROOT: usize = 0;
+    const ROOT: u16 = 0;
 
-    pub fn new(matrix: Array2<bool>) -> Self {
-        let n_cols = matrix.dim().1;
+    pub fn from_sparse_matrix(sparse_mat: &[[u16; 4]], n_total_cols: usize) -> Self {
+        let n_rows = sparse_mat.len();
+        let n_cols = n_total_cols;
 
-        let mut nodes: Vec<Node> = Vec::with_capacity(n_cols + 1);
+        let mut nodes: Vec<Node> = Vec::with_capacity(n_cols + 1 + 4 * n_rows);
         let col_counts = vec![0usize; n_cols + 1];
 
         // Add the "root" node
@@ -42,6 +43,7 @@ impl NodeGrid {
 
         // Set up header nodes
         for i in 1..=n_cols {
+            let i = i as u16;
             let new_node = Node {
                 left: i - 1,
                 right: 0,
@@ -56,65 +58,78 @@ impl NodeGrid {
             nodes.push(new_node);
         }
 
-        nodes.first_mut().expect("We know it's not empty").left = nodes.len() - 1;
+        nodes.first_mut().expect("We know it's not empty").left = (nodes.len() - 1) as u16;
 
         let mut grid = NodeGrid { nodes, col_counts };
 
-        // Convert matrix into "grid"
-        for (row_idx, row) in matrix.rows().into_iter().enumerate() {
+        // Convert sparse matrix into "grid"
+        for (row_idx, row) in sparse_mat.iter().enumerate() {
+            let row_idx = row_idx as u16;
             let mut first_in_row = None;
-            for (col_idx, &element) in row.into_iter().enumerate() {
-                if !element {
-                    continue;
-                }
-
-                let idx = grid.insert_above(col_idx + 1, row_idx);
-                match first_in_row {
-                    None => {
-                        grid.nodes[idx].right = idx;
-                        grid.nodes[idx].left = idx;
-                        first_in_row = Some(idx);
-                    }
-                    Some(first_idx) => {
-                        let left_idx = idx - 1;
-                        grid.nodes[idx].left = left_idx;
-                        grid.nodes[idx].right = first_idx;
-
-                        grid.nodes[first_idx].left = idx;
-                        grid.nodes[left_idx].right = idx;
-                    }
-                }
+            for &col in row.iter() {
+                grid.insert_new(row_idx, col, &mut first_in_row);
             }
         }
 
         grid
     }
 
-    fn node(&self, idx: usize) -> &Node {
-        &self.nodes[idx]
+    fn insert_new(&mut self, row_idx: u16, col_idx: u16, first_in_row: &mut Option<u16>) {
+        let idx = self.insert_above(col_idx + 1, row_idx);
+        match *first_in_row {
+            None => {
+                self.node_mut(idx).right = idx;
+                self.node_mut(idx).left = idx;
+                *first_in_row = Some(idx);
+            }
+            Some(first_idx) => {
+                let left_idx = idx - 1;
+                self.node_mut(idx).left = left_idx;
+                self.node_mut(idx).right = first_idx;
+
+                self.node_mut(first_idx).left = idx;
+                self.node_mut(left_idx).right = idx;
+            }
+        }
     }
 
-    fn node_mut(&mut self, idx: usize) -> &mut Node {
-        &mut self.nodes[idx]
+    #[inline(always)]
+    fn node(&self, idx: u16) -> &Node {
+        unsafe { self.nodes.get_unchecked(idx as usize) }
     }
 
-    fn count(&self, col_idx: usize) -> usize {
-        self.col_counts[col_idx]
+    #[inline(always)]
+    fn node_mut(&mut self, idx: u16) -> &mut Node {
+        unsafe { self.nodes.get_unchecked_mut(idx as usize) }
     }
 
-    fn count_mut(&mut self, col_idx: usize) -> &mut usize {
-        &mut self.col_counts[col_idx]
+    #[inline(always)]
+    fn count(&self, col_idx: u16) -> usize {
+        unsafe { *self.col_counts.get_unchecked(col_idx as usize) }
     }
 
-    fn insert_above(&mut self, hdr_idx: usize, row_idx: usize) -> usize {
-        let new_idx = self.nodes.len();
+    #[inline(always)]
+    fn count_mut(&mut self, col_idx: u16) -> &mut usize {
+        unsafe { self.col_counts.get_unchecked_mut(col_idx as usize) }
+    }
+
+    #[inline(always)]
+    fn inc_count(counts: &mut [usize], col_idx: u16) {
+        unsafe {
+            *counts.get_unchecked_mut(col_idx as usize) += 1;
+        }
+    }
+
+    #[inline(always)]
+    fn insert_above(&mut self, hdr_idx: u16, row_idx: u16) -> u16 {
+        let new_idx = self.nodes.len() as u16;
 
         // Update the node above the header node to point to new node
-        let above_idx = self.nodes[hdr_idx].up;
-        self.nodes[above_idx].down = new_idx;
+        let above_idx = self.node(hdr_idx).up;
+        self.node_mut(above_idx).down = new_idx;
 
         // Insert the new node
-        let hdr_node = &mut self.nodes[hdr_idx];
+        let hdr_node = &mut self.nodes[hdr_idx as usize];
         let new_node = Node {
             left: 0,
             right: 0,
@@ -124,29 +139,31 @@ impl NodeGrid {
             col: hdr_node.col,
         };
         hdr_node.up = new_idx;
-        self.col_counts[hdr_node.col] += 1;
+        Self::inc_count(&mut self.col_counts, hdr_node.col);
 
         self.nodes.push(new_node);
 
         new_idx
     }
 
-    fn choose_column(&self) -> usize {
+    fn choose_column(&self) -> u16 {
         let mut min_count = usize::MAX;
         let mut min_node = 0;
 
         let mut cur_node = self.node(Self::ROOT).right;
         while cur_node != Self::ROOT {
-            if self.count(self.node(cur_node).col) < min_count {
-                min_count = self.count(self.node(cur_node).col);
-                min_node = cur_node;
-            }
+            let count = self.count(cur_node);
+            (min_count, min_node) = if count < min_count {
+                (count, cur_node)
+            } else {
+                (min_count, min_node)
+            };
             cur_node = self.node(cur_node).right;
         }
         min_node
     }
 
-    fn cover_column(&mut self, col: usize) {
+    fn cover_column(&mut self, col: u16) {
         let Node {
             left, right, down, ..
         } = *self.node(col);
@@ -172,7 +189,7 @@ impl NodeGrid {
         }
     }
 
-    fn uncover_column(&mut self, col: usize) {
+    fn uncover_column(&mut self, col: u16) {
         let Node {
             left, right, up, ..
         } = *self.node(col);
@@ -199,7 +216,7 @@ impl NodeGrid {
         self.node_mut(left).right = col;
     }
 
-    pub fn search(&mut self) -> Option<Vec<usize>> {
+    pub fn search(&mut self) -> Option<Vec<u16>> {
         if self.node(Self::ROOT).right == Self::ROOT {
             return Some(Vec::new());
         }
@@ -209,7 +226,7 @@ impl NodeGrid {
 
         let mut col_node = self.node(col).down;
         while col_node != col {
-            let o = col_node;
+            let origin = col_node;
 
             let mut row_node = self.node(col_node).right;
             while row_node != col_node {
@@ -219,7 +236,7 @@ impl NodeGrid {
             }
 
             if let Some(mut result) = self.search() {
-                result.push(self.node(o).row);
+                result.push(self.node(origin).row);
                 return Some(result);
             }
 

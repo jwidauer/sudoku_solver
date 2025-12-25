@@ -24,7 +24,7 @@ impl Sudoku {
             .collect()
     }
 
-    pub fn from_str(s: &str) -> Result<Sudoku> {
+    pub fn try_from_str(s: &str) -> Result<Sudoku> {
         if s.len() != 81 {
             bail!("Invalid sudoku string length: expected 81, got {}", s.len());
         }
@@ -170,7 +170,7 @@ impl TryFrom<&str> for Sudoku {
     type Error = anyhow::Error;
 
     fn try_from(s: &str) -> Result<Sudoku> {
-        Sudoku::from_str(s)
+        Sudoku::try_from_str(s)
     }
 }
 
@@ -195,7 +195,7 @@ impl From<Sudoku> for String {
 
 impl From<Sudoku> for [u8; 81] {
     fn from(sudoku: Sudoku) -> [u8; 81] {
-        sudoku.board.into_raw_vec().try_into().unwrap()
+        sudoku.board.into_raw_vec_and_offset().0.try_into().unwrap()
     }
 }
 
