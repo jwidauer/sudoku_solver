@@ -1,3 +1,5 @@
+use super::algorithm_x_solver::NR_CONSTRAINTS;
+
 #[derive(Clone, Debug)]
 struct Node {
     left: u16,
@@ -23,9 +25,92 @@ impl Node {
     }
 }
 
+struct NodeList {
+    left: Vec<u16>,
+    right: Vec<u16>,
+    up: Vec<u16>,
+    down: Vec<u16>,
+    row: Vec<u16>,
+    col: Vec<u16>,
+}
+
+impl NodeList {
+    fn new(capacity: usize) -> Self {
+        Self {
+            left: Vec::with_capacity(capacity),
+            right: Vec::with_capacity(capacity),
+            up: Vec::with_capacity(capacity),
+            down: Vec::with_capacity(capacity),
+            row: Vec::with_capacity(capacity),
+            col: Vec::with_capacity(capacity),
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.left.len()
+    }
+
+    fn push(&mut self, node: Node) {
+        self.left.push(node.left);
+        self.right.push(node.right);
+        self.up.push(node.up);
+        self.down.push(node.down);
+        self.row.push(node.row);
+        self.col.push(node.col);
+    }
+
+    fn left(&self, idx: u16) -> u16 {
+        unsafe { *self.left.get_unchecked(idx as usize) }
+    }
+
+    fn set_left(&mut self, idx: u16, value: u16) {
+        unsafe {
+            *self.left.get_unchecked_mut(idx as usize) = value;
+        }
+    }
+
+    fn right(&self, idx: u16) -> u16 {
+        unsafe { *self.right.get_unchecked(idx as usize) }
+    }
+
+    fn set_right(&mut self, idx: u16, value: u16) {
+        unsafe {
+            *self.right.get_unchecked_mut(idx as usize) = value;
+        }
+    }
+
+    fn up(&self, idx: u16) -> u16 {
+        unsafe { *self.up.get_unchecked(idx as usize) }
+    }
+
+    fn set_up(&mut self, idx: u16, value: u16) {
+        unsafe {
+            *self.up.get_unchecked_mut(idx as usize) = value;
+        }
+    }
+
+    fn down(&self, idx: u16) -> u16 {
+        unsafe { *self.down.get_unchecked(idx as usize) }
+    }
+
+    fn set_down(&mut self, idx: u16, value: u16) {
+        unsafe {
+            *self.down.get_unchecked_mut(idx as usize) = value;
+        }
+    }
+
+    fn row(&self, idx: u16) -> u16 {
+        unsafe { *self.row.get_unchecked(idx as usize) }
+    }
+
+    fn col(&self, idx: u16) -> u16 {
+        unsafe { *self.col.get_unchecked(idx as usize) }
+    }
+}
+
 pub struct NodeGrid {
-    nodes: Vec<Node>,
-    col_counts: Vec<usize>,
+    nodes: NodeList,
+    col_counts: [u8; NR_CONSTRAINTS + 1],
 }
 
 impl NodeGrid {
@@ -35,8 +120,7 @@ impl NodeGrid {
         let n_rows = sparse_mat.len();
         let n_cols = n_total_cols;
 
-        let mut nodes: Vec<Node> = Vec::with_capacity(n_cols + 1 + 4 * n_rows);
-        let col_counts = vec![0usize; n_cols + 1];
+        let mut nodes = NodeList::new(n_cols + 1 + 4 * n_rows);
 
         // Add the "root" node
         nodes.push(Node::new());
@@ -53,14 +137,17 @@ impl NodeGrid {
                 col: i,
             };
 
-            nodes.last_mut().expect("We know it's not empty").right = i;
+            nodes.right[i as usize - 1] = i;
 
             nodes.push(new_node);
         }
 
-        nodes.first_mut().expect("We know it's not empty").left = (nodes.len() - 1) as u16;
+        nodes.left[0] = (nodes.len() - 1) as u16;
 
-        let mut grid = NodeGrid { nodes, col_counts };
+        let mut grid = NodeGrid {
+            nodes,
+            col_counts: [0; 325],
+        };
 
         // Convert sparse matrix into "grid"
         for (row_idx, row) in sparse_mat.iter().enumerate() {
@@ -78,46 +165,29 @@ impl NodeGrid {
         let idx = self.insert_above(col_idx + 1, row_idx);
         match *first_in_row {
             None => {
-                self.node_mut(idx).right = idx;
-                self.node_mut(idx).left = idx;
+                self.nodes.set_right(idx, idx);
+                self.nodes.set_left(idx, idx);
                 *first_in_row = Some(idx);
             }
             Some(first_idx) => {
                 let left_idx = idx - 1;
-                self.node_mut(idx).left = left_idx;
-                self.node_mut(idx).right = first_idx;
+                self.nodes.set_left(idx, left_idx);
+                self.nodes.set_right(idx, first_idx);
 
-                self.node_mut(first_idx).left = idx;
-                self.node_mut(left_idx).right = idx;
+                self.nodes.set_left(first_idx, idx);
+                self.nodes.set_right(left_idx, idx);
             }
         }
     }
 
     #[inline(always)]
-    fn node(&self, idx: u16) -> &Node {
-        unsafe { self.nodes.get_unchecked(idx as usize) }
-    }
-
-    #[inline(always)]
-    fn node_mut(&mut self, idx: u16) -> &mut Node {
-        unsafe { self.nodes.get_unchecked_mut(idx as usize) }
-    }
-
-    #[inline(always)]
-    fn count(&self, col_idx: u16) -> usize {
+    fn count(&self, col_idx: u16) -> u8 {
         unsafe { *self.col_counts.get_unchecked(col_idx as usize) }
     }
 
     #[inline(always)]
-    fn count_mut(&mut self, col_idx: u16) -> &mut usize {
+    fn count_mut(&mut self, col_idx: u16) -> &mut u8 {
         unsafe { self.col_counts.get_unchecked_mut(col_idx as usize) }
-    }
-
-    #[inline(always)]
-    fn inc_count(counts: &mut [usize], col_idx: u16) {
-        unsafe {
-            *counts.get_unchecked_mut(col_idx as usize) += 1;
-        }
     }
 
     #[inline(always)]
@@ -125,21 +195,21 @@ impl NodeGrid {
         let new_idx = self.nodes.len() as u16;
 
         // Update the node above the header node to point to new node
-        let above_idx = self.node(hdr_idx).up;
-        self.node_mut(above_idx).down = new_idx;
+        let above_idx = self.nodes.up(hdr_idx);
+        self.nodes.set_down(above_idx, new_idx);
 
         // Insert the new node
-        let hdr_node = &mut self.nodes[hdr_idx as usize];
+        let hdr_col = self.nodes.col(hdr_idx);
         let new_node = Node {
             left: 0,
             right: 0,
             up: above_idx,
             down: hdr_idx,
             row: row_idx,
-            col: hdr_node.col,
+            col: hdr_col,
         };
-        hdr_node.up = new_idx;
-        Self::inc_count(&mut self.col_counts, hdr_node.col);
+        self.nodes.set_up(hdr_idx, new_idx);
+        *self.count_mut(hdr_col) += 1;
 
         self.nodes.push(new_node);
 
@@ -147,109 +217,158 @@ impl NodeGrid {
     }
 
     fn choose_column(&self) -> u16 {
-        let mut min_count = usize::MAX;
+        let mut min_count = u8::MAX;
         let mut min_node = 0;
 
-        let mut cur_node = self.node(Self::ROOT).right;
+        let mut cur_node = self.nodes.right(Self::ROOT);
         while cur_node != Self::ROOT {
             let count = self.count(cur_node);
-            (min_count, min_node) = if count < min_count {
-                (count, cur_node)
-            } else {
-                (min_count, min_node)
-            };
-            cur_node = self.node(cur_node).right;
+            if count < min_count {
+                min_count = count;
+                min_node = cur_node;
+            }
+            cur_node = self.nodes.right(cur_node);
         }
         min_node
     }
 
     fn cover_column(&mut self, col: u16) {
-        let Node {
-            left, right, down, ..
-        } = *self.node(col);
-        self.node_mut(right).left = left;
-        self.node_mut(left).right = right;
+        let left = self.nodes.left(col);
+        let right = self.nodes.right(col);
+        let down = self.nodes.down(col);
+        self.nodes.set_left(right, left);
+        self.nodes.set_right(left, right);
 
         let mut col_node = down;
         while col_node != col {
-            let mut row_node = self.node(col_node).right;
+            let mut row_node = self.nodes.right(col_node);
             while row_node != col_node {
-                let Node {
-                    up,
-                    down,
-                    col: row_col,
-                    ..
-                } = *self.node(row_node);
-                self.node_mut(down).up = up;
-                self.node_mut(up).down = down;
+                let up = self.nodes.up(row_node);
+                let down = self.nodes.down(row_node);
+                let row_col = self.nodes.col(row_node);
+
+                self.nodes.set_up(down, up);
+                self.nodes.set_down(up, down);
                 *self.count_mut(row_col) -= 1;
-                row_node = self.node(row_node).right;
+                row_node = self.nodes.right(row_node);
             }
-            col_node = self.node(col_node).down;
+            col_node = self.nodes.down(col_node);
         }
     }
 
     fn uncover_column(&mut self, col: u16) {
-        let Node {
-            left, right, up, ..
-        } = *self.node(col);
+        let left = self.nodes.left(col);
+        let right = self.nodes.right(col);
+        let up = self.nodes.up(col);
 
         let mut col_node = up;
         while col_node != col {
-            let mut row_node = self.node(col_node).left;
+            let mut row_node = self.nodes.left(col_node);
             while row_node != col_node {
-                let Node {
-                    up,
-                    down,
-                    col: row_col,
-                    ..
-                } = *self.node(row_node);
-                self.node_mut(down).up = row_node;
-                self.node_mut(up).down = row_node;
+                let up = self.nodes.up(row_node);
+                let down = self.nodes.down(row_node);
+                let row_col = self.nodes.col(row_node);
+
+                self.nodes.set_up(down, row_node);
+                self.nodes.set_down(up, row_node);
                 *self.count_mut(row_col) += 1;
-                row_node = self.node(row_node).left;
+                row_node = self.nodes.left(row_node);
             }
-            col_node = self.node(col_node).up;
+            col_node = self.nodes.up(col_node);
         }
 
-        self.node_mut(right).left = col;
-        self.node_mut(left).right = col;
+        self.nodes.set_left(right, col);
+        self.nodes.set_right(left, col);
     }
 
-    pub fn search(&mut self) -> Option<Vec<u16>> {
-        if self.node(Self::ROOT).right == Self::ROOT {
-            return Some(Vec::new());
+    #[inline(always)]
+    fn cover_row(&mut self, origin: u16) {
+        let mut row_node = self.nodes.right(origin);
+        while row_node != origin {
+            let row_col = self.nodes.col(row_node);
+            self.cover_column(row_col);
+            row_node = self.nodes.right(row_node);
         }
+    }
 
-        let col = self.choose_column();
-        self.cover_column(col);
+    #[inline(always)]
+    fn uncover_row(&mut self, origin: u16) {
+        let mut row_node = self.nodes.left(origin);
+        while row_node != origin {
+            let row_col = self.nodes.col(row_node);
+            self.uncover_column(row_col);
+            row_node = self.nodes.left(row_node);
+        }
+    }
 
-        let mut col_node = self.node(col).down;
-        while col_node != col {
-            let origin = col_node;
+    // A recursive version of the algorithm X search
+    // pub fn search(&mut self) -> Option<Vec<u16>> {
+    //     if self.right(Self::ROOT) == Self::ROOT {
+    //         return Some(Vec::new());
+    //     }
+    //
+    //     let col_hdr = self.choose_column();
+    //     self.cover_column(col_hdr);
+    //
+    //     let mut col_node = self.down(col_hdr);
+    //     while col_node != col_hdr {
+    //         self.cover_row(col_node);
+    //
+    //         if let Some(mut result) = self.search() {
+    //             result.push(self.row(col_node));
+    //             return Some(result);
+    //         }
+    //
+    //         self.uncover_row(col_node);
+    //
+    //         col_node = self.down(col_node);
+    //     }
+    //
+    //     self.uncover_column(col_hdr);
+    //     None
+    // }
 
-            let mut row_node = self.node(col_node).right;
-            while row_node != col_node {
-                let row_col = self.node(row_node).col;
-                self.cover_column(row_col);
-                row_node = self.node(row_node).right;
-            }
+    // A non recursive version of search
+    pub fn search(&mut self) -> Option<Vec<u16>> {
+        let mut stack: Vec<(u16, u16)> = Vec::with_capacity(128); // (col_hdr, col_node)
 
-            if let Some(mut result) = self.search() {
-                result.push(self.node(origin).row);
+        loop {
+            if self.nodes.right(Self::ROOT) == Self::ROOT {
+                let result = stack
+                    .into_iter()
+                    .map(|(_, col_node)| self.nodes.row(col_node))
+                    .collect();
                 return Some(result);
             }
 
-            row_node = self.node(col_node).left;
-            while row_node != col_node {
-                self.uncover_column(self.node(row_node).col);
-                row_node = self.node(row_node).left;
+            let col_hdr = self.choose_column();
+            self.cover_column(col_hdr);
+
+            let col_node = self.nodes.down(col_hdr);
+            if col_node != col_hdr {
+                // Found a row to cover
+                self.cover_row(col_node);
+                stack.push((col_hdr, col_node));
+
+                continue;
             }
 
-            col_node = self.node(col_node).down;
+            // Backtrack
+            self.uncover_column(col_hdr);
+            while let Some((prev_col_hdr, prev_col_node)) = stack.pop() {
+                self.uncover_row(prev_col_node);
+                let next_col_node = self.nodes.down(prev_col_node);
+                if next_col_node != prev_col_hdr {
+                    // Found the next row to cover
+                    self.cover_row(next_col_node);
+                    stack.push((prev_col_hdr, next_col_node));
+                    break;
+                }
+                self.uncover_column(prev_col_hdr);
+            }
+            if stack.is_empty() {
+                return None; // No more options to backtrack
+            }
         }
-
-        self.uncover_column(col);
-        None
     }
 }

@@ -2,8 +2,8 @@ use crate::{sudoku::Sudoku, sudoku_solver::SudokuSolver};
 
 use super::algorithm_x::NodeGrid;
 
-const NR_CANDIDATES: usize = 9 * 9 * 9; // 729
-const NR_CONSTRAINTS: usize = 4 * 9 * 9; // 324
+pub const NR_CANDIDATES: usize = 9 * 9 * 9; // 729
+pub const NR_CONSTRAINTS: usize = 4 * 9 * 9; // 324
 
 #[derive(Debug)]
 struct Candidate {
@@ -27,7 +27,6 @@ impl AlgorithmXSudokuSolver {
         // Store just the column indices of the constraints for each candidate
         let mut sparse_mat: Vec<[u16; 4]> = Vec::with_capacity(NR_CANDIDATES);
 
-        // let mut matrix = Array2::<bool>::default((NR_CANDIDATES, NR_CONSTRAINTS));
         for candidate in &candidates {
             let row = (candidate.row - 1) as usize;
             let col = (candidate.col - 1) as usize;
