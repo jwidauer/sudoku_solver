@@ -233,23 +233,25 @@ impl NodeGrid {
     }
 
     fn cover_column(&mut self, col: u16) {
+        // Remove the column header from the header list
         let left = self.nodes.left(col);
         let right = self.nodes.right(col);
-        let down = self.nodes.down(col);
         self.nodes.set_left(right, left);
         self.nodes.set_right(left, right);
 
-        let mut col_node = down;
+        // Remove all rows in this column
+        let mut col_node = self.nodes.down(col);
         while col_node != col {
+            // Remove all nodes in this row
             let mut row_node = self.nodes.right(col_node);
             while row_node != col_node {
                 let up = self.nodes.up(row_node);
                 let down = self.nodes.down(row_node);
-                let row_col = self.nodes.col(row_node);
-
                 self.nodes.set_up(down, up);
                 self.nodes.set_down(up, down);
-                *self.count_mut(row_col) -= 1;
+
+                let row_node_col = self.nodes.col(row_node);
+                *self.count_mut(row_node_col) -= 1;
                 row_node = self.nodes.right(row_node);
             }
             col_node = self.nodes.down(col_node);
@@ -259,19 +261,18 @@ impl NodeGrid {
     fn uncover_column(&mut self, col: u16) {
         let left = self.nodes.left(col);
         let right = self.nodes.right(col);
-        let up = self.nodes.up(col);
 
-        let mut col_node = up;
+        let mut col_node = self.nodes.up(col);
         while col_node != col {
             let mut row_node = self.nodes.left(col_node);
             while row_node != col_node {
                 let up = self.nodes.up(row_node);
                 let down = self.nodes.down(row_node);
-                let row_col = self.nodes.col(row_node);
-
                 self.nodes.set_up(down, row_node);
                 self.nodes.set_down(up, row_node);
-                *self.count_mut(row_col) += 1;
+
+                let row_node_col = self.nodes.col(row_node);
+                *self.count_mut(row_node_col) += 1;
                 row_node = self.nodes.left(row_node);
             }
             col_node = self.nodes.up(col_node);
@@ -285,8 +286,8 @@ impl NodeGrid {
     fn cover_row(&mut self, origin: u16) {
         let mut row_node = self.nodes.right(origin);
         while row_node != origin {
-            let row_col = self.nodes.col(row_node);
-            self.cover_column(row_col);
+            let row_node_col = self.nodes.col(row_node);
+            self.cover_column(row_node_col);
             row_node = self.nodes.right(row_node);
         }
     }
@@ -295,8 +296,8 @@ impl NodeGrid {
     fn uncover_row(&mut self, origin: u16) {
         let mut row_node = self.nodes.left(origin);
         while row_node != origin {
-            let row_col = self.nodes.col(row_node);
-            self.uncover_column(row_col);
+            let row_node_col = self.nodes.col(row_node);
+            self.uncover_column(row_node_col);
             row_node = self.nodes.left(row_node);
         }
     }
