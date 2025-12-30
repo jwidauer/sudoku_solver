@@ -63,40 +63,32 @@ impl NodeList {
         unsafe { *self.left.get_unchecked(idx as usize) }
     }
 
-    fn set_left(&mut self, idx: u16, value: u16) {
-        unsafe {
-            *self.left.get_unchecked_mut(idx as usize) = value;
-        }
+    fn left_mut(&mut self, idx: u16) -> &mut u16 {
+        unsafe { self.left.get_unchecked_mut(idx as usize) }
     }
 
     fn right(&self, idx: u16) -> u16 {
         unsafe { *self.right.get_unchecked(idx as usize) }
     }
 
-    fn set_right(&mut self, idx: u16, value: u16) {
-        unsafe {
-            *self.right.get_unchecked_mut(idx as usize) = value;
-        }
+    fn right_mut(&mut self, idx: u16) -> &mut u16 {
+        unsafe { self.right.get_unchecked_mut(idx as usize) }
     }
 
     fn up(&self, idx: u16) -> u16 {
         unsafe { *self.up.get_unchecked(idx as usize) }
     }
 
-    fn set_up(&mut self, idx: u16, value: u16) {
-        unsafe {
-            *self.up.get_unchecked_mut(idx as usize) = value;
-        }
+    fn up_mut(&mut self, idx: u16) -> &mut u16 {
+        unsafe { self.up.get_unchecked_mut(idx as usize) }
     }
 
     fn down(&self, idx: u16) -> u16 {
         unsafe { *self.down.get_unchecked(idx as usize) }
     }
 
-    fn set_down(&mut self, idx: u16, value: u16) {
-        unsafe {
-            *self.down.get_unchecked_mut(idx as usize) = value;
-        }
+    fn down_mut(&mut self, idx: u16) -> &mut u16 {
+        unsafe { self.down.get_unchecked_mut(idx as usize) }
     }
 
     fn row(&self, idx: u16) -> u16 {
@@ -165,17 +157,17 @@ impl NodeGrid {
         let idx = self.insert_above(col_idx + 1, row_idx);
         match *first_in_row {
             None => {
-                self.nodes.set_right(idx, idx);
-                self.nodes.set_left(idx, idx);
+                *self.nodes.right_mut(idx) = idx;
+                *self.nodes.left_mut(idx) = idx;
                 *first_in_row = Some(idx);
             }
             Some(first_idx) => {
                 let left_idx = idx - 1;
-                self.nodes.set_left(idx, left_idx);
-                self.nodes.set_right(idx, first_idx);
+                *self.nodes.left_mut(idx) = left_idx;
+                *self.nodes.right_mut(idx) = first_idx;
 
-                self.nodes.set_left(first_idx, idx);
-                self.nodes.set_right(left_idx, idx);
+                *self.nodes.left_mut(first_idx) = idx;
+                *self.nodes.right_mut(left_idx) = idx;
             }
         }
     }
@@ -196,7 +188,7 @@ impl NodeGrid {
 
         // Update the node above the header node to point to new node
         let above_idx = self.nodes.up(hdr_idx);
-        self.nodes.set_down(above_idx, new_idx);
+        *self.nodes.down_mut(above_idx) = new_idx;
 
         // Insert the new node
         let hdr_col = self.nodes.col(hdr_idx);
@@ -208,7 +200,7 @@ impl NodeGrid {
             row: row_idx,
             col: hdr_col,
         };
-        self.nodes.set_up(hdr_idx, new_idx);
+        *self.nodes.up_mut(hdr_idx) = new_idx;
         *self.count_mut(hdr_col) += 1;
 
         self.nodes.push(new_node);
@@ -236,8 +228,8 @@ impl NodeGrid {
         // Remove the column header from the header list
         let left = self.nodes.left(col);
         let right = self.nodes.right(col);
-        self.nodes.set_left(right, left);
-        self.nodes.set_right(left, right);
+        *self.nodes.left_mut(right) = left;
+        *self.nodes.right_mut(left) = right;
 
         // Remove all rows in this column
         let mut col_node = self.nodes.down(col);
@@ -247,8 +239,8 @@ impl NodeGrid {
             while row_node != col_node {
                 let up = self.nodes.up(row_node);
                 let down = self.nodes.down(row_node);
-                self.nodes.set_up(down, up);
-                self.nodes.set_down(up, down);
+                *self.nodes.up_mut(down) = up;
+                *self.nodes.down_mut(up) = down;
 
                 let row_node_col = self.nodes.col(row_node);
                 *self.count_mut(row_node_col) -= 1;
@@ -268,8 +260,8 @@ impl NodeGrid {
             while row_node != col_node {
                 let up = self.nodes.up(row_node);
                 let down = self.nodes.down(row_node);
-                self.nodes.set_up(down, row_node);
-                self.nodes.set_down(up, row_node);
+                *self.nodes.up_mut(down) = row_node;
+                *self.nodes.down_mut(up) = row_node;
 
                 let row_node_col = self.nodes.col(row_node);
                 *self.count_mut(row_node_col) += 1;
@@ -278,8 +270,8 @@ impl NodeGrid {
             col_node = self.nodes.up(col_node);
         }
 
-        self.nodes.set_left(right, col);
-        self.nodes.set_right(left, col);
+        *self.nodes.left_mut(right) = col;
+        *self.nodes.right_mut(left) = col;
     }
 
     #[inline(always)]
