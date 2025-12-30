@@ -4,7 +4,7 @@ use sudoku_solver::algorithm_x_solver::AlgorithmXSudokuSolver;
 use sudoku_solver::SudokuSolver;
 
 fn benchmark(c: &mut Criterion) {
-    let file = Path::new(env!("CARGO_MANIFEST_DIR")).join("../test_sudokus.txt");
+    let file = Path::new(env!("CARGO_MANIFEST_DIR")).join("resources/bench_sudokus.txt");
     let content = std::fs::read_to_string(file).unwrap();
 
     let sudokus = content

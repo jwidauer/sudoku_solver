@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use ndarray::{iter, prelude::*};
 use std::{collections::HashSet, fmt};
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Sudoku {
     board: Array2<u8>,
 }

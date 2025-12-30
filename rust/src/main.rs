@@ -2,9 +2,11 @@ use anyhow::Result;
 use clap::Parser;
 use std::{
     fmt::{self},
+    path::PathBuf,
     time::Instant,
 };
 use sudoku::Sudoku;
+use thiserror::Error;
 
 use sudoku_solver::SudokuSolver;
 
@@ -17,9 +19,17 @@ mod stats;
 mod sudoku;
 mod sudoku_solver;
 
+const DEFAULT_INPUT_FILE: &str =
+    concat!(env!("CARGO_MANIFEST_DIR"), "/resources/bench_sudokus.txt");
+
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Args {
+    /// Path to the file containing sudokus to solve
+    #[arg(default_value = DEFAULT_INPUT_FILE)]
+    input: PathBuf,
+
+    /// Solver type to use
     #[arg(short, long, default_value_t = SolverType::AlgorithmX)]
     solver: SolverType,
 }
@@ -39,10 +49,18 @@ impl fmt::Display for SolverType {
     }
 }
 
+#[derive(Debug, Error)]
+enum SolverError {
+    #[error("No solution found for sudoku:\n{0}")]
+    NoSolution(Sudoku),
+    #[error("Wrong solution for sudoku:\n{0}")]
+    WrongSolution(Sudoku),
+}
+
 fn main() -> Result<()> {
     let args = Args::parse();
 
-    let content = std::fs::read_to_string("../test_sudokus.txt")?;
+    let content = std::fs::read_to_string(args.input)?;
 
     let sudokus = content
         .lines()
@@ -78,15 +96,17 @@ fn main() -> Result<()> {
 
             match solution {
                 Some(sol) if !sol.is_solved() => {
-                    panic!("Solution is wrong for sudoku!\n{sudoku}")
+                    return Err(SolverError::WrongSolution(sudoku).into());
                 }
-                None => println!("No solution found for sudoku!\n{sudoku}"),
+                None => {
+                    return Err(SolverError::NoSolution(sudoku).into());
+                }
                 _ => println!("Solved sudoku in {}us\n", duration.as_micros()),
             }
 
-            duration
+            Ok(duration)
         })
-        .collect::<Vec<_>>();
+        .collect::<Result<Vec<_>>>()?;
 
     let duration_ms = durations
         .iter()
