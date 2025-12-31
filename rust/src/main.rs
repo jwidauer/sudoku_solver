@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::Parser;
+use indicatif::ProgressIterator;
 use std::{
     fmt::{self},
     path::PathBuf,
@@ -80,32 +81,11 @@ fn main() -> Result<()> {
 
     println!("Starting to solve sudokus.\n");
 
-    let nr_sudokus = sudokus.len();
     let durations = sudokus
         .into_iter()
         // .take(1)
-        .enumerate()
-        .map(|(n, sudoku)| {
-            println!("Solving sudoku {}/{nr_sudokus}", n + 1);
-
-            let now = Instant::now();
-
-            let solution = solver.solve(sudoku.clone());
-
-            let duration = now.elapsed();
-
-            match solution {
-                Some(sol) if !sol.is_solved() => {
-                    return Err(SolverError::WrongSolution(sudoku).into());
-                }
-                None => {
-                    return Err(SolverError::NoSolution(sudoku).into());
-                }
-                _ => println!("Solved sudoku in {}us\n", duration.as_micros()),
-            }
-
-            Ok(duration)
-        })
+        .progress()
+        .map(|sudoku| solve_and_time_sudoku(solver.as_ref(), sudoku))
         .collect::<Result<Vec<_>>>()?;
 
     let duration_ms = durations
@@ -118,4 +98,18 @@ fn main() -> Result<()> {
     println!("Statistics: {}", duration_stats);
 
     Ok(())
+}
+
+fn solve_and_time_sudoku(solver: &dyn SudokuSolver, sudoku: Sudoku) -> Result<std::time::Duration> {
+    let now = Instant::now();
+    let solution = solver.solve(sudoku.clone());
+    let duration = now.elapsed();
+
+    let solution = solution.ok_or_else(|| SolverError::NoSolution(sudoku.clone()))?;
+
+    if !solution.is_solved() {
+        return Err(SolverError::WrongSolution(sudoku).into());
+    }
+
+    Ok(duration)
 }
