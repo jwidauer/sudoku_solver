@@ -1,5 +1,40 @@
 use super::algorithm_x_solver::NR_CONSTRAINTS;
 
+struct UncheckedIndexVec<T>(Vec<T>);
+
+impl<T> UncheckedIndexVec<T> {
+    fn new(capacity: usize) -> Self {
+        Self(Vec::with_capacity(capacity))
+    }
+
+    fn len(&self) -> usize {
+        self.0.len()
+    }
+
+    fn push(&mut self, value: T) {
+        debug_assert!(self.0.len() < self.0.capacity());
+        // SAFETY: We have ensured that there is enough capacity
+        unsafe {
+            // Write the value into the spare capacity, avoiding bounds checking
+            self.0
+                .spare_capacity_mut()
+                .get_unchecked_mut(0)
+                .write(value);
+            self.0.set_len(self.0.len() + 1);
+        }
+    }
+
+    fn get(&self, idx: u16) -> &T {
+        debug_assert!((idx as usize) < self.0.len());
+        unsafe { self.0.get_unchecked(idx as usize) }
+    }
+
+    fn get_mut(&mut self, idx: u16) -> &mut T {
+        debug_assert!((idx as usize) < self.0.len());
+        unsafe { self.0.get_unchecked_mut(idx as usize) }
+    }
+}
+
 #[derive(Clone, Debug)]
 struct Node {
     left: u16,
@@ -26,23 +61,23 @@ impl Node {
 }
 
 struct NodeList {
-    left: Vec<u16>,
-    right: Vec<u16>,
-    up: Vec<u16>,
-    down: Vec<u16>,
-    row: Vec<u16>,
-    col: Vec<u16>,
+    left: UncheckedIndexVec<u16>,
+    right: UncheckedIndexVec<u16>,
+    up: UncheckedIndexVec<u16>,
+    down: UncheckedIndexVec<u16>,
+    row: UncheckedIndexVec<u16>,
+    col: UncheckedIndexVec<u16>,
 }
 
 impl NodeList {
     fn new(capacity: usize) -> Self {
         Self {
-            left: Vec::with_capacity(capacity),
-            right: Vec::with_capacity(capacity),
-            up: Vec::with_capacity(capacity),
-            down: Vec::with_capacity(capacity),
-            row: Vec::with_capacity(capacity),
-            col: Vec::with_capacity(capacity),
+            left: UncheckedIndexVec::new(capacity),
+            right: UncheckedIndexVec::new(capacity),
+            up: UncheckedIndexVec::new(capacity),
+            down: UncheckedIndexVec::new(capacity),
+            row: UncheckedIndexVec::new(capacity),
+            col: UncheckedIndexVec::new(capacity),
         }
     }
 
@@ -60,43 +95,43 @@ impl NodeList {
     }
 
     fn left(&self, idx: u16) -> u16 {
-        unsafe { *self.left.get_unchecked(idx as usize) }
+        *self.left.get(idx)
     }
 
     fn left_mut(&mut self, idx: u16) -> &mut u16 {
-        unsafe { self.left.get_unchecked_mut(idx as usize) }
+        self.left.get_mut(idx)
     }
 
     fn right(&self, idx: u16) -> u16 {
-        unsafe { *self.right.get_unchecked(idx as usize) }
+        *self.right.get(idx)
     }
 
     fn right_mut(&mut self, idx: u16) -> &mut u16 {
-        unsafe { self.right.get_unchecked_mut(idx as usize) }
+        self.right.get_mut(idx)
     }
 
     fn up(&self, idx: u16) -> u16 {
-        unsafe { *self.up.get_unchecked(idx as usize) }
+        *self.up.get(idx)
     }
 
     fn up_mut(&mut self, idx: u16) -> &mut u16 {
-        unsafe { self.up.get_unchecked_mut(idx as usize) }
+        self.up.get_mut(idx)
     }
 
     fn down(&self, idx: u16) -> u16 {
-        unsafe { *self.down.get_unchecked(idx as usize) }
+        *self.down.get(idx)
     }
 
     fn down_mut(&mut self, idx: u16) -> &mut u16 {
-        unsafe { self.down.get_unchecked_mut(idx as usize) }
+        self.down.get_mut(idx)
     }
 
     fn row(&self, idx: u16) -> u16 {
-        unsafe { *self.row.get_unchecked(idx as usize) }
+        *self.row.get(idx)
     }
 
     fn col(&self, idx: u16) -> u16 {
-        unsafe { *self.col.get_unchecked(idx as usize) }
+        *self.col.get(idx)
     }
 }
 
@@ -129,12 +164,12 @@ impl NodeGrid {
                 col: i,
             };
 
-            nodes.right[i as usize - 1] = i;
+            *nodes.right_mut(i - 1) = i;
 
             nodes.push(new_node);
         }
 
-        nodes.left[0] = (nodes.len() - 1) as u16;
+        *nodes.left_mut(0) = (nodes.len() - 1) as u16;
 
         let mut grid = NodeGrid {
             nodes,
@@ -183,6 +218,16 @@ impl NodeGrid {
     }
 
     #[inline(always)]
+    fn inc_count(&mut self, col_idx: u16) {
+        *self.count_mut(col_idx) += 1;
+    }
+
+    #[inline(always)]
+    fn dec_count(&mut self, col_idx: u16) {
+        *self.count_mut(col_idx) -= 1;
+    }
+
+    #[inline(always)]
     fn insert_above(&mut self, hdr_idx: u16, row_idx: u16) -> u16 {
         let new_idx = self.nodes.len() as u16;
 
@@ -201,7 +246,7 @@ impl NodeGrid {
             col: hdr_col,
         };
         *self.nodes.up_mut(hdr_idx) = new_idx;
-        *self.count_mut(hdr_col) += 1;
+        self.inc_count(hdr_col);
 
         self.nodes.push(new_node);
 
@@ -243,7 +288,7 @@ impl NodeGrid {
                 *self.nodes.down_mut(up) = down;
 
                 let row_node_col = self.nodes.col(row_node);
-                *self.count_mut(row_node_col) -= 1;
+                self.dec_count(row_node_col);
                 row_node = self.nodes.right(row_node);
             }
             col_node = self.nodes.down(col_node);
@@ -264,7 +309,7 @@ impl NodeGrid {
                 *self.nodes.down_mut(up) = row_node;
 
                 let row_node_col = self.nodes.col(row_node);
-                *self.count_mut(row_node_col) += 1;
+                self.inc_count(row_node_col);
                 row_node = self.nodes.left(row_node);
             }
             col_node = self.nodes.up(col_node);
