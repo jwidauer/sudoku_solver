@@ -88,12 +88,7 @@ fn main() -> Result<()> {
         .map(|sudoku| solve_and_time_sudoku(solver.as_ref(), sudoku))
         .collect::<Result<Vec<_>>>()?;
 
-    let duration_ms = durations
-        .iter()
-        .map(|d| d.as_micros() as f64)
-        .collect::<Vec<_>>();
-
-    let duration_stats = stats::compute_statistics(duration_ms.as_slice());
+    let duration_stats = stats::compute_statistics(&durations);
 
     println!("Statistics: {}", duration_stats);
 
