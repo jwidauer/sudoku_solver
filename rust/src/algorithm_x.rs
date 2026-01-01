@@ -257,14 +257,21 @@ impl NodeGrid {
         let mut min_count = u8::MAX;
         let mut min_node = 0;
 
-        let mut cur_node = self.nodes.right(Self::ROOT);
-        while cur_node != Self::ROOT {
-            let count = self.count(cur_node);
+        let mut fwd_node = self.nodes.right(Self::ROOT);
+        let mut bwd_node = self.nodes.left(Self::ROOT);
+        while fwd_node < bwd_node {
+            let count = self.count(fwd_node);
             if count < min_count {
                 min_count = count;
-                min_node = cur_node;
+                min_node = fwd_node;
             }
-            cur_node = self.nodes.right(cur_node);
+            let count = self.count(bwd_node);
+            if count < min_count {
+                min_count = count;
+                min_node = bwd_node;
+            }
+            fwd_node = self.nodes.right(fwd_node);
+            bwd_node = self.nodes.left(bwd_node);
         }
         min_node
     }
