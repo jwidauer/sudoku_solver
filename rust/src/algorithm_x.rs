@@ -2,28 +2,9 @@ use super::algorithm_x_solver::NR_CONSTRAINTS;
 
 struct UncheckedIndexVec<T>(Vec<T>);
 
-impl<T> UncheckedIndexVec<T> {
-    fn new(capacity: usize) -> Self {
-        Self(Vec::with_capacity(capacity))
-    }
-
-    #[inline(always)]
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    #[inline(always)]
-    fn push(&mut self, value: T) {
-        debug_assert!(self.0.len() < self.0.capacity());
-        // SAFETY: We have ensured that there is enough capacity
-        unsafe {
-            // Write the value into the spare capacity, avoiding bounds checking
-            self.0
-                .spare_capacity_mut()
-                .get_unchecked_mut(0)
-                .write(value);
-            self.0.set_len(self.0.len() + 1);
-        }
+impl<T: Default + Clone> UncheckedIndexVec<T> {
+    fn new(size: usize) -> Self {
+        Self(vec![T::default(); size])
     }
 
     #[inline(always)]
@@ -36,31 +17,6 @@ impl<T> UncheckedIndexVec<T> {
     fn get_mut(&mut self, idx: u16) -> &mut T {
         debug_assert!((idx as usize) < self.0.len());
         unsafe { self.0.get_unchecked_mut(idx as usize) }
-    }
-}
-
-#[derive(Clone, Debug)]
-struct Node {
-    left: u16,
-    right: u16,
-    up: u16,
-    down: u16,
-    /// row idx of the original matrix
-    row: u16,
-    /// idx of the corresponding col header node
-    col: u16,
-}
-
-impl Node {
-    fn new() -> Self {
-        Self {
-            left: 0,
-            right: 0,
-            up: 0,
-            down: 0,
-            row: 0,
-            col: 0,
-        }
     }
 }
 
@@ -83,21 +39,6 @@ impl NodeList {
             row: UncheckedIndexVec::new(capacity),
             col: UncheckedIndexVec::new(capacity),
         }
-    }
-
-    #[inline(always)]
-    fn len(&self) -> usize {
-        self.left.len()
-    }
-
-    #[inline(always)]
-    fn push(&mut self, node: Node) {
-        self.left.push(node.left);
-        self.right.push(node.right);
-        self.up.push(node.up);
-        self.down.push(node.down);
-        self.row.push(node.row);
-        self.col.push(node.col);
     }
 
     #[inline(always)]
@@ -162,30 +103,23 @@ impl NodeGrid {
     pub fn from_sparse_matrix(sparse_mat: &[[u16; 4]], n_total_cols: usize) -> Self {
         let n_rows = sparse_mat.len();
         let n_cols = n_total_cols;
+        let n_hdr_nodes = n_cols + 1; // +1 for root node
 
-        let mut nodes = NodeList::new(n_cols + 1 + 4 * n_rows);
-
-        // Add the "root" node
-        nodes.push(Node::new());
+        let mut nodes = NodeList::new(n_hdr_nodes + 4 * n_rows);
 
         // Set up header nodes
         for i in 1..=n_cols {
             let i = i as u16;
-            let new_node = Node {
-                left: i - 1,
-                right: 0,
-                up: i,
-                down: i,
-                row: 0,
-                col: i,
-            };
-
+            // Link header nodes in a circular doubly linked list
+            *nodes.left_mut(i) = i - 1;
             *nodes.right_mut(i - 1) = i;
 
-            nodes.push(new_node);
+            *nodes.up_mut(i) = i;
+            *nodes.down_mut(i) = i;
+            *nodes.col.get_mut(i) = i;
         }
 
-        *nodes.left_mut(0) = (nodes.len() - 1) as u16;
+        *nodes.left_mut(0) = (n_hdr_nodes - 1) as u16;
 
         let mut grid = NodeGrid {
             nodes,
@@ -193,11 +127,14 @@ impl NodeGrid {
         };
 
         // Convert sparse matrix into "grid"
+        let mut new_idx = n_hdr_nodes as u16;
         for (row_idx, row) in sparse_mat.iter().enumerate() {
             let row_idx = row_idx as u16;
+
             let mut first_in_row = None;
             for &col in row.iter() {
-                grid.insert_new(row_idx, col, &mut first_in_row);
+                grid.insert_new(new_idx, col, row_idx, &mut first_in_row);
+                new_idx += 1;
             }
         }
 
@@ -205,8 +142,8 @@ impl NodeGrid {
     }
 
     #[inline(always)]
-    fn insert_new(&mut self, row_idx: u16, col_idx: u16, first_in_row: &mut Option<u16>) {
-        let idx = self.insert_above(col_idx + 1, row_idx);
+    fn insert_new(&mut self, idx: u16, hdr: u16, row_idx: u16, first_in_row: &mut Option<u16>) {
+        self.insert_above(idx, hdr + 1, row_idx);
         match *first_in_row {
             None => {
                 *self.nodes.right_mut(idx) = idx;
@@ -222,6 +159,22 @@ impl NodeGrid {
                 *self.nodes.right_mut(left_idx) = idx;
             }
         }
+    }
+
+    #[inline(always)]
+    fn insert_above(&mut self, new_idx: u16, hdr: u16, row_idx: u16) {
+        // Update the node above the header node to point to new node
+        let above = self.nodes.up(hdr);
+        *self.nodes.down_mut(above) = new_idx;
+        *self.nodes.up_mut(hdr) = new_idx;
+
+        // Insert the new node
+        *self.nodes.up_mut(new_idx) = above;
+        *self.nodes.down_mut(new_idx) = hdr;
+        *self.nodes.row.get_mut(new_idx) = row_idx;
+        *self.nodes.col.get_mut(new_idx) = hdr;
+
+        self.inc_count(hdr);
     }
 
     #[inline(always)]
@@ -242,32 +195,6 @@ impl NodeGrid {
     #[inline(always)]
     fn dec_count(&mut self, col_idx: u16) {
         *self.count_mut(col_idx) -= 1;
-    }
-
-    #[inline(always)]
-    fn insert_above(&mut self, hdr_idx: u16, row_idx: u16) -> u16 {
-        let new_idx = self.nodes.len() as u16;
-
-        // Update the node above the header node to point to new node
-        let above_idx = self.nodes.up(hdr_idx);
-        *self.nodes.down_mut(above_idx) = new_idx;
-
-        // Insert the new node
-        let hdr_col = self.nodes.col(hdr_idx);
-        let new_node = Node {
-            left: 0,
-            right: 0,
-            up: above_idx,
-            down: hdr_idx,
-            row: row_idx,
-            col: hdr_col,
-        };
-        *self.nodes.up_mut(hdr_idx) = new_idx;
-        self.inc_count(hdr_col);
-
-        self.nodes.push(new_node);
-
-        new_idx
     }
 
     #[inline(always)]
