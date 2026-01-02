@@ -259,7 +259,7 @@ impl NodeGrid {
 
         let mut fwd_node = self.nodes.right(Self::ROOT);
         let mut bwd_node = self.nodes.left(Self::ROOT);
-        while fwd_node < bwd_node {
+        while fwd_node < bwd_node && min_count != 0 {
             let count = self.count(fwd_node);
             if count < min_count {
                 min_count = count;
