@@ -7,10 +7,12 @@ impl<T> UncheckedIndexVec<T> {
         Self(Vec::with_capacity(capacity))
     }
 
+    #[inline(always)]
     fn len(&self) -> usize {
         self.0.len()
     }
 
+    #[inline(always)]
     fn push(&mut self, value: T) {
         debug_assert!(self.0.len() < self.0.capacity());
         // SAFETY: We have ensured that there is enough capacity
@@ -24,11 +26,13 @@ impl<T> UncheckedIndexVec<T> {
         }
     }
 
+    #[inline(always)]
     fn get(&self, idx: u16) -> &T {
         debug_assert!((idx as usize) < self.0.len());
         unsafe { self.0.get_unchecked(idx as usize) }
     }
 
+    #[inline(always)]
     fn get_mut(&mut self, idx: u16) -> &mut T {
         debug_assert!((idx as usize) < self.0.len());
         unsafe { self.0.get_unchecked_mut(idx as usize) }
@@ -81,10 +85,12 @@ impl NodeList {
         }
     }
 
+    #[inline(always)]
     fn len(&self) -> usize {
         self.left.len()
     }
 
+    #[inline(always)]
     fn push(&mut self, node: Node) {
         self.left.push(node.left);
         self.right.push(node.right);
@@ -94,42 +100,52 @@ impl NodeList {
         self.col.push(node.col);
     }
 
+    #[inline(always)]
     fn left(&self, idx: u16) -> u16 {
         *self.left.get(idx)
     }
 
+    #[inline(always)]
     fn left_mut(&mut self, idx: u16) -> &mut u16 {
         self.left.get_mut(idx)
     }
 
+    #[inline(always)]
     fn right(&self, idx: u16) -> u16 {
         *self.right.get(idx)
     }
 
+    #[inline(always)]
     fn right_mut(&mut self, idx: u16) -> &mut u16 {
         self.right.get_mut(idx)
     }
 
+    #[inline(always)]
     fn up(&self, idx: u16) -> u16 {
         *self.up.get(idx)
     }
 
+    #[inline(always)]
     fn up_mut(&mut self, idx: u16) -> &mut u16 {
         self.up.get_mut(idx)
     }
 
+    #[inline(always)]
     fn down(&self, idx: u16) -> u16 {
         *self.down.get(idx)
     }
 
+    #[inline(always)]
     fn down_mut(&mut self, idx: u16) -> &mut u16 {
         self.down.get_mut(idx)
     }
 
+    #[inline(always)]
     fn row(&self, idx: u16) -> u16 {
         *self.row.get(idx)
     }
 
+    #[inline(always)]
     fn col(&self, idx: u16) -> u16 {
         *self.col.get(idx)
     }
@@ -188,6 +204,7 @@ impl NodeGrid {
         grid
     }
 
+    #[inline(always)]
     fn insert_new(&mut self, row_idx: u16, col_idx: u16, first_in_row: &mut Option<u16>) {
         let idx = self.insert_above(col_idx + 1, row_idx);
         match *first_in_row {
@@ -253,6 +270,7 @@ impl NodeGrid {
         new_idx
     }
 
+    #[inline(always)]
     fn choose_column(&self) -> u16 {
         let mut min_count = u8::MAX;
         let mut min_node = 0;
@@ -276,6 +294,7 @@ impl NodeGrid {
         min_node
     }
 
+    #[inline(always)]
     fn cover_column(&mut self, col: u16) {
         // Remove the column header from the header list
         let left = self.nodes.left(col);
@@ -302,6 +321,7 @@ impl NodeGrid {
         }
     }
 
+    #[inline(always)]
     fn uncover_column(&mut self, col: u16) {
         let left = self.nodes.left(col);
         let right = self.nodes.right(col);
