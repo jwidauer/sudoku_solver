@@ -1,3 +1,4 @@
+use anyhow::Result;
 use std::{fmt, time::Duration};
 
 pub struct Statistics {
@@ -8,23 +9,30 @@ pub struct Statistics {
     total: Duration,
 }
 
-pub fn compute_statistics(values: &[Duration]) -> Statistics {
-    let avg = values.iter().cloned().sum::<Duration>() / values.len() as u32;
-    let min = values.iter().min().unwrap();
-    let max = values.iter().max().unwrap();
-    let variance = values
-        .iter()
-        .map(|&x| (x.as_secs_f64() - avg.as_secs_f64()).powi(2))
-        .sum::<f64>()
-        / (values.len() - 1) as f64;
-    let std_dev = Duration::from_secs_f64(variance.sqrt());
-    let total = values.iter().sum();
-    Statistics {
-        avg,
-        min: *min,
-        max: *max,
-        std_dev,
-        total,
+impl Statistics {
+    pub fn from_durations(values: &[Duration]) -> Result<Statistics> {
+        if values.len() < 2 {
+            anyhow::bail!("At least two durations are required to calculate standard deviation.");
+        }
+
+        let avg = values.iter().cloned().sum::<Duration>() / values.len() as u32;
+        let min = values.iter().min().unwrap();
+        let max = values.iter().max().unwrap();
+        let variance = values
+            .iter()
+            .map(|&x| (x.as_secs_f64() - avg.as_secs_f64()).powi(2))
+            .sum::<f64>()
+            / (values.len() - 1) as f64;
+        let std_dev = Duration::from_secs_f64(variance.sqrt());
+        let total = values.iter().sum();
+
+        Ok(Statistics {
+            avg,
+            min: *min,
+            max: *max,
+            std_dev,
+            total,
+        })
     }
 }
 

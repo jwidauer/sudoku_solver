@@ -18,11 +18,11 @@ def convert_to_grid(string: str) -> np.ndarray:
     return np.array(grid)
 
 
-f = open("../test_sudokus.txt")
-
 sudokus: list[np.ndarray] = []
-for sudoku in f:
-    sudokus.append(convert_to_grid(sudoku))
+with open("../test_sudokus.txt") as f:
+    for sudoku in f:
+        sudokus.append(convert_to_grid(sudoku))
+
 
 print("Starting to solve!")
 
@@ -47,9 +47,6 @@ for idx, sudoku in enumerate(sudokus):
         print(solution)
 
     runtimes.append(computation_time)
-
-    # if idx == 0:
-    #     break
 
 solved_percentage = int(found_sol / len(runtimes) * 100)
 

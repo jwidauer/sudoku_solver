@@ -83,12 +83,11 @@ fn main() -> Result<()> {
 
     let durations = sudokus
         .into_iter()
-        // .take(1)
         .progress()
         .map(|sudoku| solve_and_time_sudoku(solver.as_ref(), sudoku))
         .collect::<Result<Vec<_>>>()?;
 
-    let duration_stats = stats::compute_statistics(&durations);
+    let duration_stats = stats::Statistics::from_durations(&durations)?;
 
     println!("Statistics: {}", duration_stats);
 
