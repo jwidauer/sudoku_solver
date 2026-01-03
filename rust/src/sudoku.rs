@@ -118,8 +118,8 @@ impl Sudoku {
     }
 
     pub fn is_solved(&self) -> bool {
-        // Check that all cells are in range [0, 9]
-        if self.board.iter().any(|cell| *cell > 9 || *cell == 0) {
+        // Check that all cells are in range [1, 9]
+        if self.board.iter().any(|cell| !(1..=9).contains(cell)) {
             return false;
         }
 
