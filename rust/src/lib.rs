@@ -1,8 +1,8 @@
-mod algorithm_x;
-pub mod algorithm_x_solver;
-pub mod backtracking_solver;
+pub mod algorithm_x;
+pub mod backtracking;
 
-pub mod sudoku;
-mod sudoku_solver;
+mod solver;
+mod sudoku;
 
-pub use sudoku_solver::SudokuSolver;
+pub use solver::SudokuSolver;
+pub use sudoku::Sudoku;

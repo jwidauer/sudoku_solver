@@ -1,24 +1,15 @@
 use anyhow::Result;
 use clap::Parser;
 use indicatif::ProgressIterator;
-use std::{
-    fmt::{self},
-    path::PathBuf,
-    time::Instant,
-};
-use sudoku::Sudoku;
+use std::{fmt, path::PathBuf, time::Instant};
 use thiserror::Error;
 
+use sudoku_solver::algorithm_x;
+use sudoku_solver::backtracking;
+use sudoku_solver::Sudoku;
 use sudoku_solver::SudokuSolver;
 
-use crate::algorithm_x_solver::AlgorithmXSudokuSolver;
-
-mod algorithm_x;
-pub mod algorithm_x_solver;
-mod backtracking_solver;
 mod stats;
-mod sudoku;
-mod sudoku_solver;
 
 const DEFAULT_INPUT_FILE: &str =
     concat!(env!("CARGO_MANIFEST_DIR"), "/resources/bench_sudokus.txt");
@@ -71,11 +62,11 @@ fn main() -> Result<()> {
     let solver: Box<dyn SudokuSolver> = match args.solver {
         SolverType::Backtracking => {
             println!("Using Backtracking solver.\n");
-            Box::new(backtracking_solver::BacktrackingSolver {})
+            Box::new(backtracking::Solver::new())
         }
         SolverType::AlgorithmX => {
             println!("Using Algorithm X solver.\n");
-            Box::new(AlgorithmXSudokuSolver::new())
+            Box::new(algorithm_x::Solver::new())
         }
     };
 

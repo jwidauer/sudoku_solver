@@ -1,6 +1,6 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use std::path::Path;
-use sudoku_solver::algorithm_x_solver::AlgorithmXSudokuSolver;
+use sudoku_solver::algorithm_x::Solver;
 use sudoku_solver::SudokuSolver;
 
 fn benchmark(c: &mut Criterion) {
@@ -9,10 +9,10 @@ fn benchmark(c: &mut Criterion) {
 
     let sudokus = content
         .lines()
-        .map(|line| sudoku_solver::sudoku::Sudoku::try_from_str(line).unwrap())
+        .map(|line| sudoku_solver::Sudoku::try_from_str(line).unwrap())
         .collect::<Vec<_>>();
 
-    let solver = AlgorithmXSudokuSolver::new();
+    let solver = Solver::new();
 
     c.bench_function("solve sudokus", |b| {
         b.iter(|| {

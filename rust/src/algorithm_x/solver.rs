@@ -1,6 +1,6 @@
-use crate::{sudoku::Sudoku, sudoku_solver::SudokuSolver};
+use crate::{solver::SudokuSolver, sudoku::Sudoku};
 
-use super::algorithm_x::NodeGrid;
+use super::algorithm::NodeGrid;
 
 pub const NR_CANDIDATES: usize = 9 * 9 * 9; // 729
 pub const NR_CONSTRAINTS: usize = 4 * 9 * 9; // 324
@@ -12,12 +12,12 @@ struct Candidate {
     num: u8,
 }
 
-pub struct AlgorithmXSudokuSolver {
+pub struct Solver {
     sparse_mat: Vec<[u16; 4]>,
     candidates: Vec<Candidate>,
 }
 
-impl AlgorithmXSudokuSolver {
+impl Solver {
     pub fn new() -> Self {
         let candidates: Vec<_> = (1..10)
             .flat_map(|row| (1..10).flat_map(move |col| (1..10).map(move |num| (row, col, num))))
@@ -86,13 +86,13 @@ impl AlgorithmXSudokuSolver {
     }
 }
 
-impl Default for AlgorithmXSudokuSolver {
+impl Default for Solver {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl SudokuSolver for AlgorithmXSudokuSolver {
+impl SudokuSolver for Solver {
     fn solve(&self, mut board: Sudoku) -> Option<Sudoku> {
         // Prepare the list of row indices to select from the exact cover matrix
         let row_idcs = Self::calc_row_idcs(&board);

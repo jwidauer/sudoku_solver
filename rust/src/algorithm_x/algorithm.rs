@@ -1,4 +1,4 @@
-use super::algorithm_x_solver::NR_CONSTRAINTS;
+use super::solver::NR_CONSTRAINTS;
 
 struct UncheckedIndexVec<T>(Vec<T>);
 

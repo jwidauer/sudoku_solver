@@ -1,9 +1,13 @@
-use super::sudoku::Sudoku;
-use super::sudoku_solver::SudokuSolver;
+use crate::solver::SudokuSolver;
+use crate::sudoku::Sudoku;
 
-pub struct BacktrackingSolver {}
+pub struct Solver {}
 
-impl BacktrackingSolver {
+impl Solver {
+    pub fn new() -> Self {
+        Self {}
+    }
+
     fn solve_inplace(board: &mut Sudoku) -> bool {
         let Some(idx) = board.iter().position(|elem| *elem == 0) else {
             return true;
@@ -27,7 +31,13 @@ impl BacktrackingSolver {
     }
 }
 
-impl SudokuSolver for BacktrackingSolver {
+impl Default for Solver {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl SudokuSolver for Solver {
     fn solve(&self, mut board: Sudoku) -> Option<Sudoku> {
         Self::solve_inplace(&mut board).then_some(board)
     }
