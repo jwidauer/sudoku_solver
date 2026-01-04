@@ -1,6 +1,6 @@
 import numpy as np
 
-def check_sudoku(sudoku):
+def is_solved(sudoku):
     sudoku = np.array(sudoku)
     assert sudoku.shape == (9, 9), 'Sudoku has invalid shape.'
 
